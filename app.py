@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import io
 import os
-import platform
 import tempfile
 import zipfile
 from pathlib import Path
@@ -17,31 +16,46 @@ APP_DIR = Path(__file__).resolve().parent
 FONT_DIR = APP_DIR / "fonts"
 
 
-def system_font_dirs() -> list[Path]:
-    system = platform.system()
-    if system == "Darwin":
-        return [
-            Path.home() / "Library/Fonts",
-            Path("/Library/Fonts"),
-            Path("/System/Library/Fonts"),
-            Path("/System/Library/Fonts/Supplemental"),
-        ]
-    if system == "Windows":
-        return [Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts"]
-    return [Path.home() / ".fonts", Path("/usr/share/fonts")]
-
-
 @st.cache_data(show_spinner=False)
 def discover_fonts() -> dict[str, str]:
     fonts: dict[str, str] = {}
-    for root in [FONT_DIR, *system_font_dirs()]:
-        if not root.exists():
-            continue
+    free_font_names = {
+        "01-BadScript-Regular": "Рукописный 1 - Bad Script",
+        "02-Caveat-Regular": "Рукописный 2 - Caveat",
+        "03-MarckScript-Regular": "Рукописный 3 - Marck Script",
+        "04-Neucha-Regular": "Рукописный 4 - Neucha",
+        "05-Pacifico-Regular": "Рукописный 5 - Pacifico",
+        "06-Lobster-Regular": "Рукописный 6 - Lobster",
+        "07-AmaticSC-Regular": "Рукописный 7 - Amatic SC",
+        "08-Pangolin-Regular": "Рукописный 8 - Pangolin",
+        "09-SwankyAndMooMoo-Regular": "Рукописный 9 - Swanky and Moo Moo",
+        "10-KellySlab-Regular": "Рукописный 10 - Kelly Slab",
+    }
+
+    if FONT_DIR.exists():
         for extension in ("*.ttf", "*.otf", "*.ttc"):
-            for path in root.rglob(extension):
-                label = f"{path.stem} - {path.parent.name}"
-                fonts.setdefault(label, str(path))
-    return dict(sorted(fonts.items(), key=lambda item: item[0].lower()))
+            for path in FONT_DIR.glob(extension):
+                label = free_font_names.get(path.stem, f"Мой шрифт - {path.stem}")
+                fonts[label] = str(path)
+
+    priority = {
+        "Рукописный 1 - Bad Script": 1,
+        "Рукописный 2 - Caveat": 2,
+        "Рукописный 3 - Marck Script": 3,
+        "Рукописный 4 - Neucha": 4,
+        "Рукописный 5 - Pacifico": 5,
+        "Рукописный 6 - Lobster": 6,
+        "Рукописный 7 - Amatic SC": 7,
+        "Рукописный 8 - Pangolin": 8,
+        "Рукописный 9 - Swanky and Moo Moo": 9,
+        "Рукописный 10 - Kelly Slab": 10,
+    }
+    return dict(
+        sorted(
+            fonts.items(),
+            key=lambda item: (priority.get(item[0], 100), item[0].lower()),
+        )
+    )
 
 
 def read_text(uploaded_file) -> str:
@@ -81,13 +95,20 @@ st.caption("Подготовка текста для аккуратной печ
 
 fonts = discover_fonts()
 if not fonts:
-    st.error("Шрифты не найдены. Добавьте TTF или OTF в папку fonts.")
+    st.error(
+        "Рукописные шрифты не найдены. Перезапустите программу через "
+        "Запустить_на_Mac.command или Запустить_на_Windows.bat."
+    )
     st.stop()
 
 with st.sidebar:
     st.subheader("Оформление")
     uploaded_font = st.file_uploader("Добавить свой шрифт", type=["ttf", "otf"])
-    selected_font = st.selectbox("Шрифт", list(fonts))
+    selected_font = st.selectbox(
+        "Рукописный шрифт",
+        list(fonts),
+        help="Все десять вариантов поддерживают русский язык.",
+    )
     font_size = st.slider("Размер", 24, 92, 52)
     ink_color = st.color_picker("Цвет чернил", "#173B70")
     paper_label = st.selectbox("Бумага", ["Чистый лист", "Линейка", "Клетка"])
@@ -96,8 +117,7 @@ with st.sidebar:
 
     st.subheader("Естественность")
     line_jitter = st.slider("Сдвиг строк", 0, 10, 3)
-    word_jitter = st.slider("Сдвиг слов", 0, 6, 2)
-    rotation_jitter = st.slider("Наклон слов", 0.0, 2.0, 0.35, 0.05)
+    rotation_jitter = st.slider("Наклон строки", 0.0, 1.0, 0.15, 0.05)
     seed = st.number_input("Вариант результата", 1, 9999, 7)
 
 uploaded_text = st.file_uploader("Загрузить текст", type=["txt", "docx"])
@@ -145,7 +165,7 @@ settings = RenderSettings(
     margin_bottom=margin,
     line_spacing=line_spacing,
     line_jitter=line_jitter,
-    word_jitter=word_jitter,
+    word_jitter=0,
     rotation_jitter=rotation_jitter,
     paper_style=paper_styles[paper_label],
     seed=int(seed),
@@ -174,7 +194,7 @@ if pages:
             len(pages),
             1,
         )
-        st.image(pages[int(page_number) - 1], use_container_width=True)
+        st.image(pages[int(page_number) - 1], width="stretch")
 
     with action_column:
         st.download_button(
@@ -182,13 +202,12 @@ if pages:
             render_pdf(pages),
             file_name="handwriting-document.pdf",
             mime="application/pdf",
-            use_container_width=True,
+            width="stretch",
         )
         st.download_button(
             "Скачать страницы PNG",
             page_zip(pages),
             file_name="handwriting-pages.zip",
             mime="application/zip",
-            use_container_width=True,
+            width="stretch",
         )
-

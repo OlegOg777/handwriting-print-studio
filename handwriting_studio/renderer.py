@@ -129,31 +129,34 @@ def _draw_natural_line(
     settings: RenderSettings,
     rng: random.Random,
 ) -> None:
-    cursor = x + rng.randint(-settings.line_jitter, settings.line_jitter)
-    words = line.split(" ")
+    box = font.getbbox(line)
+    padding = max(12, settings.font_size // 3)
+    width = max(1, box[2] - box[0] + padding * 2)
+    height = max(1, box[3] - box[1] + padding * 2)
+    layer = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    layer_draw = ImageDraw.Draw(layer)
+    layer_draw.text(
+        (padding - box[0], padding - box[1]),
+        line,
+        font=font,
+        fill=settings.ink_color,
+    )
 
-    for index, word in enumerate(words):
-        token = word if index == len(words) - 1 else f"{word} "
-        box = font.getbbox(token)
-        width = max(1, box[2] - box[0] + settings.word_jitter * 4)
-        height = max(settings.font_size * 2, box[3] - box[1] + settings.word_jitter * 8)
-        layer = Image.new("RGBA", (width, height), (0, 0, 0, 0))
-        layer_draw = ImageDraw.Draw(layer)
-        layer_draw.text(
-            (settings.word_jitter * 2, settings.word_jitter * 2 - box[1]),
-            token,
-            font=font,
-            fill=settings.ink_color,
+    angle = rng.uniform(-settings.rotation_jitter, settings.rotation_jitter)
+    if angle:
+        layer = layer.rotate(
+            angle,
+            resample=Image.Resampling.BICUBIC,
+            expand=True,
         )
 
-        angle = rng.uniform(-settings.rotation_jitter, settings.rotation_jitter)
-        if angle:
-            layer = layer.rotate(angle, resample=Image.Resampling.BICUBIC, expand=True)
-
-        offset_y = rng.randint(-settings.word_jitter, settings.word_jitter)
-        page.paste(layer, (cursor, y + offset_y), layer)
-        cursor += _text_width(ImageDraw.Draw(page), token, font)
-        cursor += rng.randint(-settings.word_jitter, settings.word_jitter)
+    offset_x = rng.randint(-settings.line_jitter, settings.line_jitter)
+    offset_y = rng.randint(-1, 1) if settings.line_jitter else 0
+    page.paste(
+        layer,
+        (x + offset_x - padding, y + offset_y - padding),
+        layer,
+    )
 
 
 def render_document(text: str, settings: RenderSettings) -> list[Image.Image]:
@@ -217,4 +220,3 @@ def render_pdf(pages: list[Image.Image], dpi: int = 150) -> bytes:
         resolution=float(dpi),
     )
     return output.getvalue()
-
