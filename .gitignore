@@ -3,4 +3,7 @@
 __pycache__/
 *.pyc
 .streamlit/secrets.toml
-
+.build-venv/
+build/
+dist/
+*.spec.bak
