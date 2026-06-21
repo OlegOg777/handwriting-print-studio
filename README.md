@@ -100,6 +100,19 @@ py -m pip install -r requirements.txt
 streamlit run app.py
 ```
 
+Готовая автономная Windows-сборка доступна в GitHub Releases. Она запускается
+без предварительной установки Python.
+
+## Сборка Windows
+
+Workflow `Build Windows app` автоматически:
+
+- запускается на сервере GitHub с Windows;
+- устанавливает зависимости;
+- создаёт автономное приложение через PyInstaller;
+- упаковывает его в ZIP;
+- прикрепляет ZIP к выбранному GitHub Release.
+
 ## Шрифты
 
 В основном списке отображаются только десять готовых рукописных шрифтов.
